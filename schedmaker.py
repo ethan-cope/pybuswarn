@@ -1,31 +1,56 @@
-from bs4 import BeautifulSoup 
-import random 
+from bs4 import BeautifulSoup
+import random
+import subprocess
 import time as t
 
 #TODO: we can have this run until like 12 am? then restart 5 min after the website is downloaded?
 
 class Route():
-    def __init__(self, userstop="", timedata = [], dumbmode = False ):
+    def __init__(self, flocation = "/home/ethan/Projects/buswarn", userstop="", routenum=0, timedata = []):
+        self.flocation = flocation
         self.userstop = userstop 
+        self.routenum = routenum
         self.timedata = timedata
         self.date = ""
         self.timeindex = 0
-        self.dumbmode = dumbmode 
 
     #def stampify(self, tstamp):
 
-
-    def loadTable(self):
+    def downloadSchedule(self, tries = 0):
+        tries +=1 
         try:
-            #TODO: add multiple file types here
-            with open("routes.html", 'r') as routefile:
+            with open(self.flocation+"/routes.html","r") as routefile:
                 page = routefile.read()
-                #print(page)
-                outfile = open("times.dat","w")
-        except FileNotFoundError:
-            print("file not found: did you rename it correctly with wget?")
-            exit(1)
 
+                if page == "\n":
+                    raise FileNotFoundError("It's empty for some reason. RELOAD!")
+
+                self.loadTable(page)
+
+                if(t.localtime().tm_mday != t.localtime(self.timedata[1][0]).tm_mday):
+                    #download schedule
+                    #self.logout("The schedule is outdated. Downloading new...\n"
+                    raise FileNotFoundError("The schedule is outdated. Downloading new...\n")
+
+                return "Success!"
+
+        except FileNotFoundError as e:
+            #command: wget https://transport.tamu.edu/busroutes/Routes.aspx?r=15 -O /home/pi/buswarn/routes.htmpisnl
+            print(e)
+
+            command = "wget https://transport.tamu.edu/busroutes/Routes.aspx?r=%s -O %s/routes.html"%(self.routenum, self.flocation)
+
+            output = subprocess.run(command.split())
+            print(command)
+            print(output)
+            if tries < 3:
+                return self.downloadSchedule(tries)
+            else:
+                raise FileNotFoundError("Wget isn't working. check the connection")
+
+    def loadTable(self, page):
+
+        outfile = open("times.dat", "w")
         soup = BeautifulSoup(page, "html.parser")
         table_rows = soup.find('table').find_all('tr')
         timestr = ""
@@ -62,10 +87,7 @@ class Route():
             try:
                 row = [t.mktime(t.strptime(self.date+" "+i.text+"M","%m/%d/%Y %I:%M%p")) for i in td]
             except ValueError:
-                if self.dumbmode:
-                    print(errormessages[int(random.randrange(0,4))])
-                else:
-                    print("Some unimportant error")
+                print("Some unimportant error")
             
             if row != []:
                 data.append(row)
@@ -77,10 +99,9 @@ class Route():
 
         self.timedata = data
         print(timestr)
-        outfile.write("%i %i\n" % (len(data)-1, len(data[0])))
         #-1 for the header
+        outfile.write("%s %s\n" % (len(data)-1, len(data[0])))
         outfile.write(timestr)
-        outfile.close()
 
     def __str__(self):
         retstring = ""
@@ -94,9 +115,9 @@ class Route():
         return retstring
            
 
-r = Route("Aggie Station", dumbmode = True)
+r = Route(userstop = "Aggie Station", routenum = 15)
 try:
-    r.loadTable()
+    r.downloadSchedule()
 except ValueError as e:
     print(e)
 #print(r)
