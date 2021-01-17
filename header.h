@@ -1,7 +1,7 @@
 //for error checking and debugging
 const char STATNAME[] = "Aggie Station";
 const char* FILENAME = "times.dat";
-const int MYSTOP = 3;
+const int MYSTOP = 2;
 
 int* loadSched();
 int currentTime();
