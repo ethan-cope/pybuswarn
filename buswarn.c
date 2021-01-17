@@ -5,7 +5,7 @@
 #include "header.h"
 
 //NOTE: TESTING ONLY, REMOVE FOR PRODUCTION
-//#include <time.h>
+#include <time.h>
 
 //format: a schedule distributor program will provide a .dat file
 //with the following format:
@@ -36,11 +36,12 @@ int main()
 	 * if so, change the current stop to the next stop
 	 */
 
+	cTime = currentTime(); //so we only access the RTC once
 	while(stopIndex<schedLen)
 	{
-		printf("%d of %d\n", stopIndex, schedLen);
-		cTime = currentTime(); //so we only access the RTC once
-		sleep(3); //3 seconds
+		//printf("%d of %d\n", stopIndex, schedLen);
+		sleep(1); //3 seconds
+		cTime += 1;
 		if(cTime  > sched[stopIndex])
 		{
 			++stopIndex;
@@ -56,6 +57,7 @@ int main()
 		}
 	}
 
+	//atexit(free(sched) );
 	free(sched);
 }
 
@@ -102,13 +104,14 @@ int* loadSched(size_t *timesLen)
 int currentTime()
 {
 	//This will eventually interface with the RTC chip
-	//return time(0);
-	return 1602968400 + 3600;
+	return time(0);
+	//return 1602968400 + 3600;
 }
 
 int calcWaitTime(int cTime, int stopTime)
 {
-	return floor((stopTime-cTime)/60);
+	return ceill((stopTime-cTime)/60);
+	//why ceill? seems more accurate than floor
 }
 
 int display(int data)
