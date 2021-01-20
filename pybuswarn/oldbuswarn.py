@@ -8,14 +8,15 @@ from sevenseg import SevenSeg
 import subprocess as sp
 
 class Route():
-    def __init__(self, userstop="", timedata = [], mode = "normal" ):
+    def __init__(self, userstop="", timedata = [], mode = "normal", routenum = 15):
+        self.routenum = routenum
         self.userstop = userstop 
         self.timedata = timedata
         self.date = ""
         self.timeindex = 0
         self.mode = mode 
         self.sev = SevenSeg()
-        self.location = "/home/pi/buswarn"
+        self.location = "/home/pi/buswarn/pybuswarn"
         self.logfile = open(self.location+"/log","a")
 
     def isdebug(self):
@@ -26,37 +27,37 @@ class Route():
         try:
             with open(self.location+"/routes.html","r") as routefile:
                 page = routefile.read()
-        
+                self.loadTable(page)
+
                 if(t.localtime().tm_mday != self.timedata[1][0].tm_mday):
-                    #download schedule
                     raise FileNotFoundError("The schedule is outdated. did the cron job work correctly?")
 
                 current_time = t.mktime(t.localtime()) 
 
                 #this handles if the program is started in the middle of the day for whatever reason
                 if self.timeindex == 0:
+                    col = self.timedata[0].index(self.userstop)
                     self.timeindex = 1
-                    #print("The thing is %s" % len(self.timedata))
                     while t.mktime(self.timedata[self.timeindex][col]) < current_time and self.timeindex < len(self.timedata):
-                        #print("Index of %s, column of %s" % (self.timeindex, col))
                         self.timeindex += 1
                         if(self.timeindex == len(self.timedata)):
                             raise FileNotFoundError("The day is over, or your schedule is outdated!")
                     next_time = t.mktime(self.timedata[self.timeindex][col])
         
                 #elif self.timeindex+1 == len(self.timedata):
-                    #raise ValueError("End of bus routes today. Bye!")          self.loadtable(page)
+                    #raise ValueError("End of bus routes today. Bye!")          
 
         except FileNotFoundError:
+            #cut and paste command:
             #wget https://transport.tamu.edu/busroutes/Routes.aspx?r=15 -O /home/pi/buswarn/routes.htmpisnl
 
-            command = "wget https://transport.tamu.edu/busroutes/Routes.aspx?r=%s -O %s/routes.html"%(routenum, self.location)
+            command = "wget https://transport.tamu.edu/busroutes/Routes.aspx?r=%s -O %s/routes.html"%(self.routenum, self.location)
             output = sp.check_output(command.split())
             self.logfile.write(str(output))
             print(output)
 
             if tries < 3:
-                return downloadSchedule(tries)
+                return self.downloadSchedule(tries)
             else:
                 raise FileNotFoundError("Wget isn't working. check the connection")
 
@@ -81,8 +82,9 @@ class Route():
             if row != []:
                 data.append(row)
 
+
         date = str([i.time for i in table_rows[3].find_all('td')]) 
-        self.date = date[date.find('\"')+1:date.find(' ',date.find('\"')+1)] #hardcoded string offset to search behind
+        self.date = date[date.find('\"')+1:date.find(' ',date.find('\"')+1)] 
        
         #dumb error messages 
         errormessages = ["Uh oh!", "Stinky!", "Poopies!", "Haha!"]
@@ -123,9 +125,9 @@ class Route():
         current_time = t.mktime(t.localtime()) 
         #to save on resources, we'll have the os start and stop buswarn when it needs   
         while(True):
-            #secs in day = 86400
 
-            #if the bus leaves
+            current_time = t.mktime(t.localtime()) 
+
             if current_time > next_time:
                 self.timeindex+=1
                 next_time = t.mktime(self.timedata[self.timeindex][col])
@@ -141,15 +143,10 @@ class Route():
 
             #TODO - delete the routes file if it's the end of the day!
 
-            #handles the minute changing
             if (next_time - prev_time)//60 != (next_time - current_time)//60:
-                #essentially, if the seconds aren't the same as the last time through the loop
                 diff = (next_time - current_time)/60+1
                 print("%i" % diff)
-                #self.logfile.write("[%s] %i\n" %(t.strftime("%I:%M %p",t.localtime()), diff))
                 self.sev.display([diff//10,diff%10])
-                #+1 is the nice way of rounding so the minutes roughly match up.
-                #also gives lazy people an extra incentive to go earlier I guess
 
             #print((next_time - current_time)/60)
             #print("[%s]"%t.strftime("%I:%M %p",self.timedata[self.timeindex][col]))
