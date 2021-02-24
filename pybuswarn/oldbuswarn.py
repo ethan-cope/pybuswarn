@@ -68,7 +68,10 @@ class Route():
 			
 		#Note - this throws an error at some point. I don't know what causes it
 		soup = BeautifulSoup(page, "html.parser")
-		table_rows = soup.find('table').find_all('tr')
+		try:
+			table_rows = soup.find('table').find_all('tr')
+		except AttributeError:
+			raise FileNotFoundError("The schedule is corrupted in some way, no table found")
 		data = []
 
 		#gets header
@@ -129,7 +132,7 @@ class Route():
 				self.timeindex+=1
 				next_time = t.mktime(self.timedata[self.timeindex][col])
 				print("Bus left! next bus leaves at [%s]"%t.strftime("%I:%M %p",self.timedata[self.timeindex][col]))
-				self.logfile.write("[%s] %s\n" %(t.strftime("%I:%M %p",t.localtime()),"Bus Left"))
+				self.logfile.write("[%s] %s\n" %(t.strftime("%d.%m.%y% I:%M %p",t.localtime()),"Bus Left"))
 				self.sev.display([0,0])
 				t.sleep(.5)
 				self.sev.display([-1,-1])
