@@ -1,0 +1,732 @@
+
+
+<!DOCTYPE html>
+<!--[if lt IE 7 ]><html class="ie ie6" lang="en"> <![endif]-->
+<!--[if IE 7 ]><html class="ie ie7" lang="en"> <![endif]-->
+<!--[if IE 8 ]><html class="ie ie8" lang="en"> <![endif]-->
+<!--[if (gte IE 9)|!(IE)]><!-->
+<html lang="en">
+<!--<![endif]-->
+
+<head>
+    <!-- Basic Page Needs ================================================== -->
+    <title>
+	15 &bull; A&amp;M Transportation Services
+</title><meta charset="utf-8" /><meta name="description" content="Bus Route Maps for Texas A&amp;M University" /><meta name="author" content="Transportation Services" />
+
+    <!-- Mobile Specific Metas ================================================== -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+
+    <!-- CSS ================================================== -->
+    <link rel="stylesheet" type="text/css" media="all" href="Style/jsDatePick_ltr.css" /><link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Open+Sans:700" />
+    <!--<link rel="stylesheet" type="text/css" href="Style/base.css" />-->
+    <!--<link rel="stylesheet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/dojo/1.9.3/dijit/themes/claro/claro.css" />-->
+    <link rel="stylesheet" type="text/css" href="https://transport.tamu.edu/css/style.css" />
+    <!--<link rel="stylesheet" href="Style/skeleton.css" />-->
+    <link rel="stylesheet" type="text/css" href="Style/layout.css" /><link rel="stylesheet" type="text/css" href="font-awesome/css/font-awesome.min.css" /><link rel="stylesheet" type="text/css" href="https://js.arcgis.com/3.9/js/esri/css/esri.css" />
+
+    <style type="text/css">
+    </style>
+
+    <link rel="stylesheet" type="text/css" href="Style/RouteColors.css" />
+
+    <!--[if lt IE 9]>
+        <script src="https://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <!-- Favicons ======================================================== -->
+    <link rel="shortcut icon" href="images/favicon.ico" />
+    <!--
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png" /><link rel="apple-touch-icon" sizes="72x72" href="images/apple-touch-icon-72x72.png" /><link rel="apple-touch-icon" sizes="114x114" href="images/apple-touch-icon-114x114.png" />
+    -->
+
+    <!-- Scripts ========================================================= -->
+    
+    <script src="Scripts/jsDatePick.full.1.3.js"></script>
+    
+    <script type="text/javascript" src="https://js.arcgis.com/3.9/" data-dojo-config="async:true"></script>
+
+    <script type="text/javascript" src="Scripts/date.js"></script>
+    <script type="text/javascript" src="Scripts/TS.Football.js"></script>
+    <script type="text/javascript" src="Scripts/site.js"></script>
+    <script type="text/javascript" src="Scripts/AnnouncementsController.js"></script>
+    <script type="text/javascript" src="Scripts/BusRefreshController.js"></script>
+    <script type="text/javascript" src="Scripts/DateController.js"></script>
+    <script type="text/javascript" src="Scripts/HighContrastController.js"></script>
+    <script type="text/javascript" src="Scripts/MapController.js"></script>
+    <script type="text/javascript" src="Scripts/RouteSelectorController.js"></script>
+    <script type="text/javascript" src="Scripts/TimeTableController.js"></script>
+
+    <script type="text/javascript">
+
+        // Global variables ==================================================
+
+        var TS = TS || {};
+
+        // Avoid console errors in browsers that lack a console.
+        (function () {
+            var method;
+            var noop = function () { };
+            var methods = [
+                'assert', 'clear', 'count', 'debug', 'dir', 'dirxml', 'error',
+                'exception', 'group', 'groupCollapsed', 'groupEnd', 'info', 'log',
+                'markTimeline', 'profile', 'profileEnd', 'table', 'time', 'timeEnd',
+                'timeStamp', 'trace', 'warn'
+            ];
+            var length = methods.length;
+            var console = (window.console = window.console || {});
+
+            while (length--) {
+                method = methods[length];
+
+                // Only stub undefined methods.
+                if (!console[method]) {
+                    console[method] = noop;
+                }
+            }
+        }());
+
+        // Document ready ====================================================
+        require(["dojo", "dojo/_base/array", "dojo/dom", "dojo/dom-style", "dojo/json", "dojo/on", "dojo/request", "dojo/fx", "esri/map", "dojo/domReady!"],
+            function (d, array, dom, domStyle, JSON, on, request, fx, Map) {
+
+                // Note the version
+                console.log("dojo version: " + [d.version.major, d.version.minor, d.version.patch].join("."));
+
+                function buttonClicked(event) {
+                    console.log("buttonClicked");
+                    console.dir(event);
+
+                    var el = event.target,
+                        hideMenu = true,
+                        highContrast = false,
+                        navToggle = dom.byId("navToggle"),
+                        timeTableLink = null;
+
+                    timeTableLink = document.getElementsByClassName("InfoBox", "StopsAndTimes")[0];
+
+                    // walk up the DOM tree to the nav element
+                    while (el) {
+                        switch (el) {
+                            case TimeTableController.navButton.domNode:
+                                AnnouncementsController.container.hide();
+                                RouteSelectorController.container.hide();
+                                el = null;
+                                break;
+                            case AnnouncementsController.button.domNode:
+                                RouteSelectorController.container.hide();
+                                TimeTableController.container.hide();
+                                el = null;
+                                break;
+                            case dom.byId("SelectedRoute"):
+                            case RouteSelectorController.button.domNode:
+                                AnnouncementsController.container.hide();
+                                TimeTableController.container.hide();
+                                el = null;
+                                break;
+                            case HighContrastController.button.domNode:
+                                highContrast = HighContrastController.button.isOn();
+                                MapController.setHighContrast(highContrast);
+                                el = null;
+                                break;
+                            case DateController.selector.domNode:
+                            case navToggle:
+                                hideMenu = false;
+                                el = null;
+                                break;
+                            case timeTableLink:
+                                // show the time table if a single route page is being viewed
+                                // if a multi-route page is being viewed, go to the single route
+                                if (RouteSelectorController.singleRouteSelected()) {
+                                    if (!TimeTableController.container.isVisible()) {
+                                        TimeTableController.navButton.domNode.click();
+                                    }
+                                    MapController.map.infoWindow.hide();
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                }
+                                el = null;
+                                break;
+                            default:
+                                el = el.parentNode;
+                                break;
+                        }
+                    }
+
+                    // hide the navExtras menu if the click did not originate from the navToggle icon
+                    if (hideMenu && domStyle.get(navToggle, "display") !== "none") {
+                        fx.wipeOut({ node: "navExtras" }).play();
+                    }
+                };
+
+                function mapContainerResize() {
+                    console.log("mapContainerResize()");
+
+                    var navStyleHeight, windowHeight, adjustedMapHeight;
+
+                    // Size the map canvas to fill the remainder of the screen height
+                    navStyleHeight = domStyle.get("topNav", "height");
+                    //navStyleHeight = new Number(navStyleHeight.match(/\d*/));
+
+                    // use getBoundingClientRect()?
+                    //var windowHeight = window.innerHeight;
+                    windowHeight = document.documentElement.clientHeight;
+
+                    //var adjustedMapHeight = (windowHeight - navStyleHeight) + "px";
+                    adjustedMapHeight = (windowHeight - navStyleHeight);
+
+                    console.log("adjustedMapHeight (" + adjustedMapHeight + "px) = windowHeight (" + windowHeight + "px) - navStyleHeight (" + navStyleHeight + "px)");
+
+                    //dom.byId("map_canvas").style.height = adjustedMapHeight + "px";
+                    domStyle.set("map_canvas", "height", adjustedMapHeight + "px");
+                };
+
+                function promptForPageRefresh() {
+                    var okToRefresh = confirm("Is it OK to refresh the page so that route information for today is displayed?");
+                    if (okToRefresh) { location.reload(true); }
+                }
+
+                function resizeWindowEvent() {
+                    console.log("resizeWindowEvent()");
+                    syncNavExtras();
+                    mapContainerResize();
+                };
+
+                function stopImageForDate(date) {
+                    console.group("stopImageForDate()");
+                    console.log("date " + date);
+                    var image = null;
+
+                    if (date.isToday()) {
+                        if (date.isGameWeekend()) { image = TS.siteRoot + "images/sec/SEClogo.png"; }
+                    }
+
+                    console.log("image " + image);
+                    console.groupEnd();
+                    return image;
+                };
+
+                function syncNavExtras() {
+                    console.log("syncNavExtras()");
+                    var navExtras = dom.byId("navExtras");
+
+                    // Short Circuit: For browsers that do not support media queries, default the navExtras to inline
+                    if (/ie[6|7|8]/.test(document.getElementsByTagName("html")[0].className)) {
+                        console.log("IE6/7/8 short circuit");
+                        navExtras.style.display = "inline";
+                        return;
+                    }
+
+                    // Browser supports media queries! Default settings are:
+                    // * navToggle hidden, navExtras visible
+                    // * navToggle visible, navExtras hidden
+                    if (domStyle.get("navToggle", "display") == "none") {
+                        console.log("showing navExtras");
+                        navExtras.style.display = "inline";
+                    }
+                    else {
+                        console.log("hiding navExtras");
+                        navExtras.style.display = "none";
+                    }
+                };
+
+                // Before initializig the controllers
+
+                //sychronize the Nav bar to the window size, and adjust the map canvas height to fill the remaining window
+                // height after the nav bar.
+                syncNavExtras();
+                mapContainerResize();
+
+                // when the selected route changes, update the time table caption
+                on(dom.byId("SelectedRoute"), "change", function (event) {
+                    TimeTableController.setRoute(RouteSelectorController.selectedRoute());
+                    // date set again to cause route/date relationships to update.
+                    TimeTableController.setDate(DateController.selector.selectedDate);
+
+                    if (RouteSelectorController.singleRouteSelected()) {
+                        // show bus markers if the selected route is a single route, and not a game day route
+                        if (DateController.selector.selectedDate.isToday()) {
+                            BusRefreshController.button.setOn();
+                        }
+
+                        // Business Rule: Display the time table by default if a single route is selected and screen size is over 768px
+                        if (document.documentElement.clientWidth > 768) { TimeTableController.container.show("fast"); }
+                        else { TimeTableController.container.hide("fast"); }
+                    }
+                    else {
+                        TimeTableController.container.hide("fast");
+                    }
+                });
+
+                // Get the base map to be used by the Map Controller
+                request(TS.feedTemplates.root + TS.feedTemplates.gisServers, {
+                    handleAs: "json",
+                    headers: { "Accept": "application/json", "Cache-Control": "no-cache" },
+                    preventCache: true,
+                    timeout: 1000
+                }).then(function (results) {
+                    console.group("Basemap request");
+                    console.dir(results);
+
+                    results.mapSr = Number(results.mapSr);
+
+                    // initialize the map first.  Button controllers will be calling functions in the map controller,
+                    // but the map controller will not be calling any button functions
+                    MapController.initialize("map_canvas", {
+                        busImage: { path: "images/busDir0.png", height: 36, width: 36 },
+                        baseMap: { sr: results.mapSr, url: results.mapUrl }
+                    });
+
+                    // Fill the Pattern & Stops layers once they have been added to the map
+                    on(MapController.map, "layers-add-result", function (event) {
+                        MapController.log && console.group("Map layers added. Filling patterns and stops.");
+
+                        var isHighContrast = HighContrastController.button.isOn(),
+                            routes = RouteSelectorController.selectedRoutes(),
+                            selectedDate = DateController.selector.selectedDate;
+                        stopOptions = {};
+
+                        array.forEach(routes, function (route) {
+                            MapController.requestRoute(route.ShortName, selectedDate).then(
+                                function (requestedRoute) {
+                                    var stopImageUrl = stopImageForDate(selectedDate);
+
+                                    MapController.log && console.log("requestRoute results:" + requestedRoute.number);
+                                    MapController.loadRequestedRoute(requestedRoute, { stopUrl: stopImageUrl, timePointUrl: stopImageUrl });
+                                    MapController.createRequestedRouteGraphics(requestedRoute.number);
+
+                                    if (RouteSelectorController.singleRouteSelected()) {
+                                        // show buses on single routes if selected date is today
+                                        if (DateController.selector.selectedDate.isToday()) {
+                                            MapController.updateBusPositionForRoute(requestedRoute.number);
+                                        }
+                                    }
+                                },
+                                function (err) { MapController.log && console.error(err); }
+                            );
+                        });
+
+                        if (!RouteSelectorController.singleRouteSelected()) {
+                            // hide stops on multi-routes
+                            MapController.hideStopsLayer();
+                        }
+                        MapController.log && console.groupEnd();
+                    });
+
+                    console.groupEnd();
+                }, function (err) {
+                    console.log("Basemap request error: ", err);
+                });
+
+                // initialize all the controllers
+                // wrapped in try/catch to prevent error from affecting a controller down the line
+                try { RouteSelectorController.initialize(); } catch (err) { console.log("RouteSelectorController error: %s", err); }
+                try { DateController.initialize(); } catch (err) { console.log("DateController error: %s", err); }
+                try { HighContrastController.initialize(); } catch (err) { console.log("HighContrastController error: %s", err); }
+                try { BusRefreshController.initialize(); } catch (err) { console.log("BusRefreshController error: %s", err); }
+                try { TimeTableController.initialize(); } catch (err) { console.log("TimeTableController error: %s", err); }
+                try { AnnouncementsController.initialize(); } catch (err) { console.log("AnnouncementsController error: %s", err); }
+
+                // sync RouteSelectorController contrast with HighContrastController
+                RouteSelectorController.setHighContrast(HighContrastController.button.isOn());
+
+                // Set a listener for window resize events (navigator window gets resized, or mobile device orientation changes)
+                on(window, "resize", resizeWindowEvent);
+
+                // Set a listener for clicks on buttons in the nav bar
+                on(window, "click", buttonClicked);
+
+                // Add click functionality to navToggle button
+                on(dom.byId("navToggle"), "click", function (event) {
+                    console.log("Nav Toggle");
+                    var anim;
+
+                    // set the animation to be performed. If navExtras are hidden, wipe them in.  If they are visible, wipe them out.
+                    if (domStyle.get("navExtras", "display") === "none") {
+                        console.log("wipe in");
+                        anim = fx.wipeIn({ node: "navExtras" });
+
+                        // things to be done after the wipe in animation ends
+                        on(anim, "End", function () {
+                            console.log("wipe in complete");
+                            // resize the map for IE6/7/8
+                            if (/ie[6|7|8]/.test(document.getElementsByTagName("html")[0].className)) {
+                                console.log("IE6/7/8 post-wipe-in actions");
+                                //mapContainerResize();
+                                //MapController.resize();
+                            }
+                        });
+                    }
+                    else {
+                        console.log("wipe out");
+                        anim = fx.wipeOut({ node: "navExtras" });
+
+                        // things to be done after the wipe out animation ends
+                        on(anim, "End", function () {
+                            console.log("wipe out complete");
+                            // resize the map for IE6/7/8
+                            if (/ie[6|7|8]/.test(document.getElementsByTagName("html")[0].className)) {
+                                console.log("IE6/7/8 post-wipe-out actions");
+                                mapContainerResize();
+                                MapController.resize();
+                            }
+                        });
+                    }
+
+
+                    // things to be done after either of the animations end
+                    on(anim, "End", function () {
+                        console.log("animation complete");
+                        // resize the map for IE6/7/8
+                        if (/ie[6|7|8]/.test(document.getElementsByTagName("html")[0].className)) {
+                            console.log("IE6/7/8 after-animation actions");
+                            //mapContainerResize();
+                            //MapController.resize();
+                        }
+                    });
+
+                    anim.play();
+                });
+
+                // Make the logo go to the application root
+                dom.byId("homeLogo").href = TS.siteRoot;
+
+                // Time table modifications for the selected route
+                TimeTableController.timeTableModificationsForRoute(RouteSelectorController.selectedRoute());
+                TimeTableController.setDate(DateController.selector.selectedDate);
+
+                // Things to do if the current date is being viewed
+                if (DateController.selector.selectedDate.isToday()) {
+                    console.log("today!");
+
+                    // show bus markers if the selected route is a single route, and not a game day route
+                    if (RouteSelectorController.singleRouteSelected()) {
+                        BusRefreshController.button.setOn();
+                    }
+
+                    // Add a timer to reload the page at 2am
+                    var tomorrow2am = new Date();
+                    tomorrow2am.setDate(tomorrow2am.getDate() + 1);
+                    tomorrow2am.setHours(2, 0, 0, 0);
+
+                    var now = new Date();
+
+                    //setTimeout(promptForPageRefresh, tomorrow2am - now);
+                    setTimeout(function () { location.reload(true); }, tomorrow2am - now);
+                }
+
+                // address date selector problem with iOS platforms
+                //if (/iPhone|iPad|iPod|Win32/i.test(navigator.platform)) {
+                if (/iPhone|iPad|iPod/i.test(navigator.platform)) {
+                    console.log("platform: " + navigator.platform);
+                    DateController.selector.toTextBox();
+                    DateController.selector.displayShortUsDate();
+                    //DateController.selector.domNode.removeEventListener();
+                    //DateController.selector.addJsDateSelector();
+                    //DateController.selector.addJsDateChangeListener();
+                }
+            });
+    </script>
+    <!-- Google Analytics Code -->
+    <script>
+        (function (i, s, o, g, r, a, m) {
+            i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
+                (i[r].q = i[r].q || []).push(arguments);
+            }, i[r].l = 1 * new Date(); a = s.createElement(o),
+                m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m);
+        })(window, document, 'script', 'https://www.google-analytics.com/analytics.js', 'ga');
+
+        ga('create', 'UA-552777-1', 'auto');
+        ga('send', 'pageview');
+    </script>
+    <!-- End Google Anayltics Code -->
+</head>
+<body class="claro">
+    <form method="post" action="./Routes.aspx?r=15" id="form1">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="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" />
+
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="9DB26453" />
+<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="uqzIhtmb3KnyZgZSnCarpkb98E9Hhwqe3yOExjmtmgSzdopfDc1wn7d0Ni40HBtOGdOVZC8PgW4cVmZo5Z60XOA6ICemwQQll1Y/hIlBE04ju5uLY5qm02HO0pIDFcex" />
+        <div class="container">
+            <header>
+                <nav id="topNav" class="">
+                    <a href="Help.aspx" id="HelpButton" class="on" title="Help">
+                        <span class="fa-stack fa-2x">
+                            <i class="fa fa-question-circle fa-stack-2x"></i>
+                        </span>
+                    </a>
+                    <a href="#" id="navToggle">
+                        <span class="fa-stack fa-2x">
+                            <i class="fa fa-bars fa-stack-2x"></i>
+                        </span>
+                    </a>
+                    <a id="TsLink" href="https://transport.tamu.edu" class="on">
+                        <img id="TsImg" src="images/horiz-maroon-black-lg.png" />
+                        <span id="TsCircle" class="fa-stack fa-2x">
+                            <i class="fa fa-circle fa-stack-2x"></i>
+                            <strong class="fa-stack-1x text">TS</strong>
+                        </span>
+                    </a>
+                    <a id="homeLogo" href="https://transport.tamu.edu/busroutes">
+                        <img id="imgAggieSpirit" src="images/AggieSpirit.png" />
+                    </a>
+                    <a href="#" id="RouteSelectorButton" class="on" title="Routes">
+                        <span id="SelectedRoute" class="BGRouteColor RouteColorCompliment"></span>
+                        <span class="fa-stack fa-2x">
+                            <i class="fa fa-bus fa-stack-2x"></i>
+                        </span>
+                    </a>
+                    <a href="#" id="TimeTableButton" class="on" title="Time Table">
+                        <span class="fa-stack fa-2x">
+                            <i class="fa fa-clock-o fa-stack-2x"></i>
+                        </span>
+                    </a>
+                    <a href="#" id="AnnouncementsButton" class="on" title="Announcements">
+                        <span class="fa-stack fa-2x">
+                            <i class="fa fa-bullhorn fa-stack-2x"></i>
+                        </span>
+                    </a>
+                    <ul id="navExtras">
+                        <li>
+                            <input name="TimeTableDateTextBox" value="2021-01-20" size="10" id="TimeTableDateTextBox" class="calendar" type="date" />
+                        </li>
+                        <li><a href="#" id="TimeTableButton2" class="on" title="Time Table">
+                            <span class="fa-stack fa-2x">
+                                <i class="fa fa-clock-o fa-stack-2x"></i>
+                            </span>Leave Times</a></li>
+                        <li><a href="#" id="AnnouncementsButton2" class="on" title="Announcements">
+                            <span class="fa-stack fa-2x">
+                                <i class="fa fa-bullhorn fa-stack-2x"></i>
+                            </span>Announcements</a></li>
+                        <li><a id="HighContrastButton" class="off" href="#" title="High Contrast">
+                            <span class="fa-stack fa-2x">
+                                <i class="fa fa-adjust fa-stack-2x"></i>
+                            </span><span class="text">High Contrast</span></a>
+                        </li>
+                        <li>
+                            <a href="#" id="BusPositionRefreshButton" class="on" title="Bus Position Refresh">
+                                <span class="fa-stack fa-2x">
+                                    <i class="fa fa-repeat fa-stack-2x"></i>
+                                    <strong id="countdown" class="fa-stack-1x time"></strong>
+                                </span>
+                                <span class="text">Bus Position Refresh</span>
+                            </a>
+                        </li>
+                    </ul>
+                    <a href="https://transport.tamu.edu/Transit/comments.aspx" id="FeedbackButton" class="on" title="Feedback">
+                        <span class="fa-stack fa-2x">
+                            <i class="fa fa-envelope fa-stack-2x"></i>
+                        </span></a>
+
+                </nav>
+            </header>
+            
+            <div id="EmergencyMessages" class="warning">
+                
+            </div>
+            <div id="dateFormatInfo" class="warning">Use yyyy-mm-dd format for dates</div>
+            <div id="ButtonData">
+                <div id="RouteLinks"></div>
+                <div id="Announcements"></div>
+                <div id="TimeTable">
+                    <button type="button" id="togglePastLeaveTimes" value="Show">Show Expired Leave Times</button>
+                    <div>
+	<table class="timetable" cellspacing="0" rules="all" border="1" id="TimeTableGridView">
+		<caption>
+			<span class="Route">15</span><span> 1/20/2021</span>
+		</caption><tr class="Route01 RouteColorCompliment BGRouteColor headRow">
+			<th class="leave" colspan="3">Leave</th><th class="arrive" colspan="1">Arrive</th>
+		</tr><tr class="Route01 RouteColorCompliment BGRouteColor headRow">
+			<th class="BGRouteColor RouteColorCompliment Route15" scope="col">MSC</th><th class="BGRouteColor RouteColorCompliment Route15" scope="col">Reveille Ranch</th><th class="BGRouteColor RouteColorCompliment Route15" scope="col">Aggie Station</th><th class="BGRouteColor RouteColorCompliment Route15" scope="col">MSC</th>
+		</tr><tr>
+			<td>&nbsp;</td><td><time dateTime="1/20/2021 6:53:00 AM">06:53A</time></td><td><time dateTime="1/20/2021 7:00:00 AM">07:00A</time></td><td><time dateTime="1/20/2021 7:11:00 AM">07:11A</time></td>
+		</tr><tr class="oddRow">
+			<td>&nbsp;</td><td>&nbsp;</td><td><time dateTime="1/20/2021 7:08:00 AM">07:08A</time></td><td><time dateTime="1/20/2021 7:19:00 AM">07:19A</time></td>
+		</tr><tr>
+			<td>&nbsp;</td><td><time dateTime="1/20/2021 7:09:00 AM">07:09A</time></td><td><time dateTime="1/20/2021 7:16:00 AM">07:16A</time></td><td><time dateTime="1/20/2021 7:27:00 AM">07:27A</time></td>
+		</tr><tr class="oddRow">
+			<td>&nbsp;</td><td><time dateTime="1/20/2021 7:17:00 AM">07:17A</time></td><td><time dateTime="1/20/2021 7:24:00 AM">07:24A</time></td><td><time dateTime="1/20/2021 7:35:00 AM">07:35A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 7:16:00 AM">07:16A</time></td><td><time dateTime="1/20/2021 7:25:00 AM">07:25A</time></td><td><time dateTime="1/20/2021 7:32:00 AM">07:32A</time></td><td><time dateTime="1/20/2021 7:43:00 AM">07:43A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 7:24:00 AM">07:24A</time></td><td><time dateTime="1/20/2021 7:33:00 AM">07:33A</time></td><td><time dateTime="1/20/2021 7:40:00 AM">07:40A</time></td><td><time dateTime="1/20/2021 7:51:00 AM">07:51A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 7:32:00 AM">07:32A</time></td><td><time dateTime="1/20/2021 7:41:00 AM">07:41A</time></td><td><time dateTime="1/20/2021 7:48:00 AM">07:48A</time></td><td><time dateTime="1/20/2021 7:59:00 AM">07:59A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 7:40:00 AM">07:40A</time></td><td><time dateTime="1/20/2021 7:49:00 AM">07:49A</time></td><td><time dateTime="1/20/2021 7:56:00 AM">07:56A</time></td><td><time dateTime="1/20/2021 8:07:00 AM">08:07A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 7:48:00 AM">07:48A</time></td><td><time dateTime="1/20/2021 7:57:00 AM">07:57A</time></td><td><time dateTime="1/20/2021 8:04:00 AM">08:04A</time></td><td><time dateTime="1/20/2021 8:15:00 AM">08:15A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 7:56:00 AM">07:56A</time></td><td><time dateTime="1/20/2021 8:05:00 AM">08:05A</time></td><td><time dateTime="1/20/2021 8:12:00 AM">08:12A</time></td><td><time dateTime="1/20/2021 8:23:00 AM">08:23A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 8:04:00 AM">08:04A</time></td><td><time dateTime="1/20/2021 8:13:00 AM">08:13A</time></td><td><time dateTime="1/20/2021 8:20:00 AM">08:20A</time></td><td><time dateTime="1/20/2021 8:31:00 AM">08:31A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 8:12:00 AM">08:12A</time></td><td><time dateTime="1/20/2021 8:21:00 AM">08:21A</time></td><td><time dateTime="1/20/2021 8:28:00 AM">08:28A</time></td><td><time dateTime="1/20/2021 8:39:00 AM">08:39A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 8:20:00 AM">08:20A</time></td><td><time dateTime="1/20/2021 8:29:00 AM">08:29A</time></td><td><time dateTime="1/20/2021 8:36:00 AM">08:36A</time></td><td><time dateTime="1/20/2021 8:47:00 AM">08:47A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 8:28:00 AM">08:28A</time></td><td><time dateTime="1/20/2021 8:37:00 AM">08:37A</time></td><td><time dateTime="1/20/2021 8:44:00 AM">08:44A</time></td><td><time dateTime="1/20/2021 8:55:00 AM">08:55A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 8:36:00 AM">08:36A</time></td><td><time dateTime="1/20/2021 8:45:00 AM">08:45A</time></td><td><time dateTime="1/20/2021 8:52:00 AM">08:52A</time></td><td><time dateTime="1/20/2021 9:03:00 AM">09:03A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 8:44:00 AM">08:44A</time></td><td><time dateTime="1/20/2021 8:53:00 AM">08:53A</time></td><td><time dateTime="1/20/2021 9:00:00 AM">09:00A</time></td><td><time dateTime="1/20/2021 9:11:00 AM">09:11A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 8:52:00 AM">08:52A</time></td><td><time dateTime="1/20/2021 9:01:00 AM">09:01A</time></td><td><time dateTime="1/20/2021 9:08:00 AM">09:08A</time></td><td><time dateTime="1/20/2021 9:19:00 AM">09:19A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 9:00:00 AM">09:00A</time></td><td><time dateTime="1/20/2021 9:09:00 AM">09:09A</time></td><td><time dateTime="1/20/2021 9:16:00 AM">09:16A</time></td><td><time dateTime="1/20/2021 9:27:00 AM">09:27A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 9:08:00 AM">09:08A</time></td><td><time dateTime="1/20/2021 9:17:00 AM">09:17A</time></td><td><time dateTime="1/20/2021 9:24:00 AM">09:24A</time></td><td><time dateTime="1/20/2021 9:35:00 AM">09:35A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 9:16:00 AM">09:16A</time></td><td><time dateTime="1/20/2021 9:25:00 AM">09:25A</time></td><td><time dateTime="1/20/2021 9:32:00 AM">09:32A</time></td><td><time dateTime="1/20/2021 9:43:00 AM">09:43A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 9:24:00 AM">09:24A</time></td><td><time dateTime="1/20/2021 9:33:00 AM">09:33A</time></td><td><time dateTime="1/20/2021 9:40:00 AM">09:40A</time></td><td><time dateTime="1/20/2021 9:51:00 AM">09:51A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 9:32:00 AM">09:32A</time></td><td><time dateTime="1/20/2021 9:41:00 AM">09:41A</time></td><td><time dateTime="1/20/2021 9:48:00 AM">09:48A</time></td><td><time dateTime="1/20/2021 9:59:00 AM">09:59A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 9:40:00 AM">09:40A</time></td><td><time dateTime="1/20/2021 9:49:00 AM">09:49A</time></td><td><time dateTime="1/20/2021 9:56:00 AM">09:56A</time></td><td><time dateTime="1/20/2021 10:07:00 AM">10:07A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 9:48:00 AM">09:48A</time></td><td><time dateTime="1/20/2021 9:57:00 AM">09:57A</time></td><td><time dateTime="1/20/2021 10:04:00 AM">10:04A</time></td><td><time dateTime="1/20/2021 10:15:00 AM">10:15A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 10:00:00 AM">10:00A</time></td><td><time dateTime="1/20/2021 10:07:00 AM">10:07A</time></td><td><time dateTime="1/20/2021 10:14:00 AM">10:14A</time></td><td><time dateTime="1/20/2021 10:25:00 AM">10:25A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 10:10:00 AM">10:10A</time></td><td><time dateTime="1/20/2021 10:17:00 AM">10:17A</time></td><td><time dateTime="1/20/2021 10:24:00 AM">10:24A</time></td><td><time dateTime="1/20/2021 10:35:00 AM">10:35A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 10:20:00 AM">10:20A</time></td><td><time dateTime="1/20/2021 10:27:00 AM">10:27A</time></td><td><time dateTime="1/20/2021 10:34:00 AM">10:34A</time></td><td><time dateTime="1/20/2021 10:45:00 AM">10:45A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 10:30:00 AM">10:30A</time></td><td><time dateTime="1/20/2021 10:37:00 AM">10:37A</time></td><td><time dateTime="1/20/2021 10:44:00 AM">10:44A</time></td><td><time dateTime="1/20/2021 10:55:00 AM">10:55A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 10:40:00 AM">10:40A</time></td><td><time dateTime="1/20/2021 10:47:00 AM">10:47A</time></td><td><time dateTime="1/20/2021 10:54:00 AM">10:54A</time></td><td><time dateTime="1/20/2021 11:05:00 AM">11:05A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 10:50:00 AM">10:50A</time></td><td><time dateTime="1/20/2021 10:57:00 AM">10:57A</time></td><td><time dateTime="1/20/2021 11:04:00 AM">11:04A</time></td><td><time dateTime="1/20/2021 11:15:00 AM">11:15A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 11:00:00 AM">11:00A</time></td><td><time dateTime="1/20/2021 11:07:00 AM">11:07A</time></td><td><time dateTime="1/20/2021 11:14:00 AM">11:14A</time></td><td><time dateTime="1/20/2021 11:25:00 AM">11:25A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 11:10:00 AM">11:10A</time></td><td><time dateTime="1/20/2021 11:17:00 AM">11:17A</time></td><td><time dateTime="1/20/2021 11:24:00 AM">11:24A</time></td><td><time dateTime="1/20/2021 11:35:00 AM">11:35A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 11:20:00 AM">11:20A</time></td><td><time dateTime="1/20/2021 11:27:00 AM">11:27A</time></td><td><time dateTime="1/20/2021 11:34:00 AM">11:34A</time></td><td><time dateTime="1/20/2021 11:45:00 AM">11:45A</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 11:30:00 AM">11:30A</time></td><td><time dateTime="1/20/2021 11:37:00 AM">11:37A</time></td><td><time dateTime="1/20/2021 11:44:00 AM">11:44A</time></td><td><time dateTime="1/20/2021 11:55:00 AM">11:55A</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 11:40:00 AM">11:40A</time></td><td><time dateTime="1/20/2021 11:47:00 AM">11:47A</time></td><td><time dateTime="1/20/2021 11:54:00 AM">11:54A</time></td><td><time dateTime="1/20/2021 12:05:00 PM">12:05P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 11:50:00 AM">11:50A</time></td><td><time dateTime="1/20/2021 11:57:00 AM">11:57A</time></td><td><time dateTime="1/20/2021 12:04:00 PM">12:04P</time></td><td><time dateTime="1/20/2021 12:15:00 PM">12:15P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 12:00:00 PM">12:00P</time></td><td><time dateTime="1/20/2021 12:07:00 PM">12:07P</time></td><td><time dateTime="1/20/2021 12:14:00 PM">12:14P</time></td><td><time dateTime="1/20/2021 12:25:00 PM">12:25P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 12:10:00 PM">12:10P</time></td><td><time dateTime="1/20/2021 12:17:00 PM">12:17P</time></td><td><time dateTime="1/20/2021 12:24:00 PM">12:24P</time></td><td><time dateTime="1/20/2021 12:35:00 PM">12:35P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 12:20:00 PM">12:20P</time></td><td><time dateTime="1/20/2021 12:27:00 PM">12:27P</time></td><td><time dateTime="1/20/2021 12:34:00 PM">12:34P</time></td><td><time dateTime="1/20/2021 12:45:00 PM">12:45P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 12:30:00 PM">12:30P</time></td><td><time dateTime="1/20/2021 12:37:00 PM">12:37P</time></td><td><time dateTime="1/20/2021 12:44:00 PM">12:44P</time></td><td><time dateTime="1/20/2021 12:55:00 PM">12:55P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 12:40:00 PM">12:40P</time></td><td><time dateTime="1/20/2021 12:47:00 PM">12:47P</time></td><td><time dateTime="1/20/2021 12:54:00 PM">12:54P</time></td><td><time dateTime="1/20/2021 1:05:00 PM">01:05P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 12:50:00 PM">12:50P</time></td><td><time dateTime="1/20/2021 12:57:00 PM">12:57P</time></td><td><time dateTime="1/20/2021 1:04:00 PM">01:04P</time></td><td><time dateTime="1/20/2021 1:15:00 PM">01:15P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 1:00:00 PM">01:00P</time></td><td><time dateTime="1/20/2021 1:07:00 PM">01:07P</time></td><td><time dateTime="1/20/2021 1:14:00 PM">01:14P</time></td><td><time dateTime="1/20/2021 1:25:00 PM">01:25P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 1:10:00 PM">01:10P</time></td><td><time dateTime="1/20/2021 1:17:00 PM">01:17P</time></td><td><time dateTime="1/20/2021 1:24:00 PM">01:24P</time></td><td><time dateTime="1/20/2021 1:35:00 PM">01:35P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 1:20:00 PM">01:20P</time></td><td><time dateTime="1/20/2021 1:27:00 PM">01:27P</time></td><td><time dateTime="1/20/2021 1:34:00 PM">01:34P</time></td><td><time dateTime="1/20/2021 1:45:00 PM">01:45P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 1:30:00 PM">01:30P</time></td><td><time dateTime="1/20/2021 1:37:00 PM">01:37P</time></td><td><time dateTime="1/20/2021 1:44:00 PM">01:44P</time></td><td><time dateTime="1/20/2021 1:55:00 PM">01:55P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 1:40:00 PM">01:40P</time></td><td><time dateTime="1/20/2021 1:47:00 PM">01:47P</time></td><td><time dateTime="1/20/2021 1:54:00 PM">01:54P</time></td><td><time dateTime="1/20/2021 2:05:00 PM">02:05P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 1:50:00 PM">01:50P</time></td><td><time dateTime="1/20/2021 1:57:00 PM">01:57P</time></td><td><time dateTime="1/20/2021 2:04:00 PM">02:04P</time></td><td><time dateTime="1/20/2021 2:15:00 PM">02:15P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 2:00:00 PM">02:00P</time></td><td><time dateTime="1/20/2021 2:07:00 PM">02:07P</time></td><td><time dateTime="1/20/2021 2:14:00 PM">02:14P</time></td><td><time dateTime="1/20/2021 2:25:00 PM">02:25P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 2:10:00 PM">02:10P</time></td><td><time dateTime="1/20/2021 2:17:00 PM">02:17P</time></td><td><time dateTime="1/20/2021 2:24:00 PM">02:24P</time></td><td><time dateTime="1/20/2021 2:35:00 PM">02:35P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 2:20:00 PM">02:20P</time></td><td><time dateTime="1/20/2021 2:27:00 PM">02:27P</time></td><td><time dateTime="1/20/2021 2:34:00 PM">02:34P</time></td><td><time dateTime="1/20/2021 2:45:00 PM">02:45P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 2:30:00 PM">02:30P</time></td><td><time dateTime="1/20/2021 2:37:00 PM">02:37P</time></td><td><time dateTime="1/20/2021 2:44:00 PM">02:44P</time></td><td><time dateTime="1/20/2021 2:55:00 PM">02:55P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 2:40:00 PM">02:40P</time></td><td><time dateTime="1/20/2021 2:47:00 PM">02:47P</time></td><td><time dateTime="1/20/2021 2:54:00 PM">02:54P</time></td><td><time dateTime="1/20/2021 3:05:00 PM">03:05P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 2:50:00 PM">02:50P</time></td><td><time dateTime="1/20/2021 2:57:00 PM">02:57P</time></td><td><time dateTime="1/20/2021 3:04:00 PM">03:04P</time></td><td><time dateTime="1/20/2021 3:15:00 PM">03:15P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 3:00:00 PM">03:00P</time></td><td><time dateTime="1/20/2021 3:09:00 PM">03:09P</time></td><td><time dateTime="1/20/2021 3:16:00 PM">03:16P</time></td><td><time dateTime="1/20/2021 3:27:00 PM">03:27P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 3:10:00 PM">03:10P</time></td><td><time dateTime="1/20/2021 3:19:00 PM">03:19P</time></td><td><time dateTime="1/20/2021 3:26:00 PM">03:26P</time></td><td><time dateTime="1/20/2021 3:37:00 PM">03:37P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 3:20:00 PM">03:20P</time></td><td><time dateTime="1/20/2021 3:29:00 PM">03:29P</time></td><td><time dateTime="1/20/2021 3:36:00 PM">03:36P</time></td><td><time dateTime="1/20/2021 3:47:00 PM">03:47P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 3:28:00 PM">03:28P</time></td><td><time dateTime="1/20/2021 3:37:00 PM">03:37P</time></td><td><time dateTime="1/20/2021 3:44:00 PM">03:44P</time></td><td><time dateTime="1/20/2021 3:55:00 PM">03:55P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 3:36:00 PM">03:36P</time></td><td><time dateTime="1/20/2021 3:45:00 PM">03:45P</time></td><td><time dateTime="1/20/2021 3:52:00 PM">03:52P</time></td><td><time dateTime="1/20/2021 4:03:00 PM">04:03P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 3:44:00 PM">03:44P</time></td><td><time dateTime="1/20/2021 3:53:00 PM">03:53P</time></td><td><time dateTime="1/20/2021 4:00:00 PM">04:00P</time></td><td><time dateTime="1/20/2021 4:11:00 PM">04:11P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 3:52:00 PM">03:52P</time></td><td><time dateTime="1/20/2021 4:01:00 PM">04:01P</time></td><td><time dateTime="1/20/2021 4:08:00 PM">04:08P</time></td><td><time dateTime="1/20/2021 4:19:00 PM">04:19P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 4:00:00 PM">04:00P</time></td><td><time dateTime="1/20/2021 4:09:00 PM">04:09P</time></td><td><time dateTime="1/20/2021 4:16:00 PM">04:16P</time></td><td><time dateTime="1/20/2021 4:27:00 PM">04:27P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 4:08:00 PM">04:08P</time></td><td><time dateTime="1/20/2021 4:17:00 PM">04:17P</time></td><td><time dateTime="1/20/2021 4:24:00 PM">04:24P</time></td><td><time dateTime="1/20/2021 4:35:00 PM">04:35P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 4:16:00 PM">04:16P</time></td><td><time dateTime="1/20/2021 4:25:00 PM">04:25P</time></td><td><time dateTime="1/20/2021 4:32:00 PM">04:32P</time></td><td><time dateTime="1/20/2021 4:43:00 PM">04:43P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 4:24:00 PM">04:24P</time></td><td><time dateTime="1/20/2021 4:33:00 PM">04:33P</time></td><td><time dateTime="1/20/2021 4:40:00 PM">04:40P</time></td><td><time dateTime="1/20/2021 4:51:00 PM">04:51P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 4:32:00 PM">04:32P</time></td><td><time dateTime="1/20/2021 4:41:00 PM">04:41P</time></td><td><time dateTime="1/20/2021 4:48:00 PM">04:48P</time></td><td><time dateTime="1/20/2021 4:59:00 PM">04:59P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 4:40:00 PM">04:40P</time></td><td><time dateTime="1/20/2021 4:49:00 PM">04:49P</time></td><td><time dateTime="1/20/2021 4:56:00 PM">04:56P</time></td><td><time dateTime="1/20/2021 5:07:00 PM">05:07P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 4:48:00 PM">04:48P</time></td><td><time dateTime="1/20/2021 4:57:00 PM">04:57P</time></td><td><time dateTime="1/20/2021 5:04:00 PM">05:04P</time></td><td><time dateTime="1/20/2021 5:15:00 PM">05:15P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 4:56:00 PM">04:56P</time></td><td><time dateTime="1/20/2021 5:05:00 PM">05:05P</time></td><td><time dateTime="1/20/2021 5:12:00 PM">05:12P</time></td><td><time dateTime="1/20/2021 5:23:00 PM">05:23P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 5:04:00 PM">05:04P</time></td><td><time dateTime="1/20/2021 5:11:00 PM">05:11P</time></td><td><time dateTime="1/20/2021 5:18:00 PM">05:18P</time></td><td><time dateTime="1/20/2021 5:29:00 PM">05:29P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 5:12:00 PM">05:12P</time></td><td><time dateTime="1/20/2021 5:19:00 PM">05:19P</time></td><td><time dateTime="1/20/2021 5:26:00 PM">05:26P</time></td><td><time dateTime="1/20/2021 5:37:00 PM">05:37P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 5:20:00 PM">05:20P</time></td><td><time dateTime="1/20/2021 5:27:00 PM">05:27P</time></td><td><time dateTime="1/20/2021 5:34:00 PM">05:34P</time></td><td><time dateTime="1/20/2021 5:45:00 PM">05:45P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 5:30:00 PM">05:30P</time></td><td><time dateTime="1/20/2021 5:37:00 PM">05:37P</time></td><td><time dateTime="1/20/2021 5:44:00 PM">05:44P</time></td><td><time dateTime="1/20/2021 5:55:00 PM">05:55P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 5:40:00 PM">05:40P</time></td><td><time dateTime="1/20/2021 5:47:00 PM">05:47P</time></td><td><time dateTime="1/20/2021 5:54:00 PM">05:54P</time></td><td><time dateTime="1/20/2021 6:05:00 PM">06:05P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 5:50:00 PM">05:50P</time></td><td><time dateTime="1/20/2021 5:57:00 PM">05:57P</time></td><td><time dateTime="1/20/2021 6:04:00 PM">06:04P</time></td><td><time dateTime="1/20/2021 6:15:00 PM">06:15P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 6:00:00 PM">06:00P</time></td><td><time dateTime="1/20/2021 6:07:00 PM">06:07P</time></td><td><time dateTime="1/20/2021 6:14:00 PM">06:14P</time></td><td><time dateTime="1/20/2021 6:25:00 PM">06:25P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 6:15:00 PM">06:15P</time></td><td><time dateTime="1/20/2021 6:22:00 PM">06:22P</time></td><td><time dateTime="1/20/2021 6:29:00 PM">06:29P</time></td><td><time dateTime="1/20/2021 6:40:00 PM">06:40P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 6:30:00 PM">06:30P</time></td><td><time dateTime="1/20/2021 6:37:00 PM">06:37P</time></td><td><time dateTime="1/20/2021 6:44:00 PM">06:44P</time></td><td><time dateTime="1/20/2021 6:55:00 PM">06:55P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 6:45:00 PM">06:45P</time></td><td><time dateTime="1/20/2021 6:52:00 PM">06:52P</time></td><td><time dateTime="1/20/2021 6:59:00 PM">06:59P</time></td><td><time dateTime="1/20/2021 7:10:00 PM">07:10P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 7:15:00 PM">07:15P</time></td><td><time dateTime="1/20/2021 7:22:00 PM">07:22P</time></td><td><time dateTime="1/20/2021 7:29:00 PM">07:29P</time></td><td><time dateTime="1/20/2021 7:40:00 PM">07:40P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 7:30:00 PM">07:30P</time></td><td><time dateTime="1/20/2021 7:38:00 PM">07:38P</time></td><td><time dateTime="1/20/2021 7:48:00 PM">07:48P</time></td><td><time dateTime="1/20/2021 7:55:00 PM">07:55P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 7:45:00 PM">07:45P</time></td><td><time dateTime="1/20/2021 7:52:00 PM">07:52P</time></td><td><time dateTime="1/20/2021 7:59:00 PM">07:59P</time></td><td><time dateTime="1/20/2021 8:10:00 PM">08:10P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 8:15:00 PM">08:15P</time></td><td><time dateTime="1/20/2021 8:22:00 PM">08:22P</time></td><td><time dateTime="1/20/2021 8:29:00 PM">08:29P</time></td><td><time dateTime="1/20/2021 8:40:00 PM">08:40P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 8:30:00 PM">08:30P</time></td><td><time dateTime="1/20/2021 8:38:00 PM">08:38P</time></td><td><time dateTime="1/20/2021 8:48:00 PM">08:48P</time></td><td><time dateTime="1/20/2021 8:55:00 PM">08:55P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 8:45:00 PM">08:45P</time></td><td><time dateTime="1/20/2021 8:52:00 PM">08:52P</time></td><td><time dateTime="1/20/2021 8:59:00 PM">08:59P</time></td><td><time dateTime="1/20/2021 9:10:00 PM">09:10P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 9:15:00 PM">09:15P</time></td><td><time dateTime="1/20/2021 9:22:00 PM">09:22P</time></td><td><time dateTime="1/20/2021 9:29:00 PM">09:29P</time></td><td><time dateTime="1/20/2021 9:40:00 PM">09:40P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 9:30:00 PM">09:30P</time></td><td><time dateTime="1/20/2021 9:38:00 PM">09:38P</time></td><td><time dateTime="1/20/2021 9:48:00 PM">09:48P</time></td><td><time dateTime="1/20/2021 9:55:00 PM">09:55P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 9:45:00 PM">09:45P</time></td><td><time dateTime="1/20/2021 9:52:00 PM">09:52P</time></td><td><time dateTime="1/20/2021 9:59:00 PM">09:59P</time></td><td><time dateTime="1/20/2021 10:10:00 PM">10:10P</time></td>
+		</tr><tr>
+			<td><time dateTime="1/20/2021 10:30:00 PM">10:30P</time></td><td><time dateTime="1/20/2021 10:38:00 PM">10:38P</time></td><td><time dateTime="1/20/2021 10:48:00 PM">10:48P</time></td><td><time dateTime="1/20/2021 10:55:00 PM">10:55P</time></td>
+		</tr><tr class="oddRow">
+			<td><time dateTime="1/20/2021 11:30:00 PM">11:30P</time></td><td><time dateTime="1/20/2021 11:38:00 PM">11:38P</time></td><td><time dateTime="1/20/2021 11:48:00 PM">11:48P</time></td><td><time dateTime="1/20/2021 11:55:00 PM">11:55P</time></td>
+		</tr>
+	</table>
+</div>
+                </div>
+            </div>
+            <div id="map_canvas"></div>
+            
+        </div>
+        <!-- container -->
+    </form>
+    <footer>version: M20201006.B1.R1.S02</footer>
+</body>
+</html>
