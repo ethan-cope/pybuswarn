@@ -1,5 +1,8 @@
 #!/usr/bin/python3
 
+#note - index goes out of bounds at end of day - handle and make end nicely
+#note2 - handling no service days is BROKEN! make it seed the correct day from the HTML file correctly.
+
 from bs4 import BeautifulSoup 
 import random 
 import time as t
@@ -17,7 +20,7 @@ class Route():
 #modes: schedgen, pyfollow
 		self.mode = mode 
 		self.sev = SevenSeg()
-		self.location = "/home/pi/buswarn/pybuswarn"
+		self.location = "/home/pi/buswarn"
 		self.logfile = open(self.location+"/log","a")
 
 	#deprecated
@@ -29,10 +32,12 @@ class Route():
 		try:
 			with open(self.location+"/routes.html","r") as routefile:
 				page = routefile.read()
-				self.loadTable(page)
-
+				LoadErrors = self.loadTable(page)
 				if(t.localtime().tm_mday != self.timedata[1][0].tm_mday):
 					raise FileNotFoundError("The schedule is outdated. did the cron job work correctly?")
+
+				if(LoadErrors == "No Service"):
+					raise FileNotFoundError("No Service today. is it a game day?")
 
 				current_time = t.mktime(t.localtime()) 
 
@@ -84,7 +89,7 @@ class Route():
 			td = row.find_all('td')
 			for item in td:
 				if(item.text == "No Service Is Scheduled For This Date"):
-					raise ValueError("No service for buses today: is it a game day?")
+					return "No Service"
 
 		for i in range(1,3):
 			th = table_rows[i].find_all('th')
