@@ -81,12 +81,11 @@ class SevenSeg():
 			#print("you need to send over ints!")
 
 
-"""
 sev = SevenSeg()
-sev.display([6,9])
+sev.display([0,8])
 time.sleep(6)
 GPIO.cleanup()
-"""
+
 """
 try:
 	for i in range(99, 0, -1):
