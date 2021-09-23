@@ -9,3 +9,5 @@
 - Pi CE0  (GPIO  8) to Lcd CS
 - Pi      (GPIO  5) to Lcd Rst
 - Pi      (GPIO 13) to Lcd LED (optional) 
+
+

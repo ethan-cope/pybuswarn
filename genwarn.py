@@ -33,11 +33,14 @@ class Route():
                         with open(self.location+"/routes.html","r") as routefile:
                                 page = routefile.read()
                                 LoadErrors = self.loadTable(page)
-                                if(t.localtime().tm_mday != self.timedata[1][0].tm_mday):
-                                        raise FileNotFoundError("The schedule is outdated. did the cron job work correctly?")
+                                print(LoadErrors)
 
                                 if(LoadErrors == "No Service"):
                                         raise FileNotFoundError("No Service today. is it a game day?")
+
+
+                                if(t.localtime().tm_mday != self.timedata[1][0].tm_mday):
+                                        raise FileNotFoundError("The schedule is outdated. did the cron job work correctly?")
 
                                 current_time = t.mktime(t.localtime()) 
 
@@ -140,13 +143,15 @@ class Route():
                 next_time = -1
                 prev_time = -1
                 current_time = t.mktime(t.localtime()) 
-                while(self.timeindex < len(self.timedata)-1):
-
+                #while(self.timeindex < len(self.timedata)-1):
+                while(True):
                         current_time = t.mktime(t.localtime()) 
 
                         if current_time > next_time:
                             #and self.timeindex < len(self.timedata) - 1: but this error is actually what ends the prog
                                 self.timeindex+=1
+
+                                #eventually catch this error 
                                 next_time = t.mktime(self.timedata[self.timeindex][col])
                                 print("Bus left! next bus leaves at [%s]"%t.strftime("%I:%M %p",self.timedata[self.timeindex][col]))
                                 #self.logfile.write("[%s] %s\n" %(t.strftime("%d.%m.%y% I:%M %p",t.localtime()),"Bus Left"))

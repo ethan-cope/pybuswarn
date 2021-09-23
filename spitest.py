@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import busio
 import board
 import time 
@@ -8,12 +9,15 @@ spi = busio.SPI(board.SCK, MISO=board.MISO, MOSI=board.MOSI)
 while not spi.try_lock():
     pass
 
-spi.configure(baudrate=9600, phase=0, polarity=0)
+#ok, so it is locked
+spi.configure(baudrate=5000000, phase=0, polarity=0)
 
 try:
     for i in range(0,4):
         res = bytearray(2)
-        print(spi.write_readinto(res,[0x00,0xff]))
+        spi.write([0x00,0xff])
+        spi.readinto(res)
         print(res)
 finally:
     spi.unlock()
+
