@@ -1,6 +1,6 @@
-#BUSWARN ASCIIART HERE
+# BUSWARN ASCIIART HERE
 
-##pinout for 5110 screen
+## pinout for 5110 screen
 - Pi GND to Lcd GND
 - Pi 3.3v to Lcd Vcc
 - Pi SCK  (GPIO 11) to Lcd Clk
